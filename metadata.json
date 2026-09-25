@@ -1,0 +1,6 @@
+{
+  "name": "FlowPay B2B Protocol",
+  "description": "B2B Payment Protocol on the Arc Blockchain with Stream Manager and Invoice Vault",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

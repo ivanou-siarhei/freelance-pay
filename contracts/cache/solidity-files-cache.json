@@ -1,0 +1,81 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "E:\\PROJECTS\\ARK\\PayFlow\\contracts\\contracts\\FlowPayEscrow.sol": {
+      "lastModificationDate": 1781786557841,
+      "contentHash": "562f90d94a9088883a406c38e199e5f5",
+      "sourceName": "contracts/FlowPayEscrow.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FlowPayEscrow",
+        "IERC20",
+        "Ownable",
+        "ReentrancyGuard",
+        "SafeERC20"
+      ]
+    },
+    "E:\\PROJECTS\\ARK\\PayFlow\\contracts\\contracts\\MockERC20.sol": {
+      "lastModificationDate": 1781786580730,
+      "contentHash": "160fbb6eef657d59d6f1d64d17fa5d6c",
+      "sourceName": "contracts/MockERC20.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockERC20"
+      ]
+    }
+  }
+}

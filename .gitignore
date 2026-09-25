@@ -1,0 +1,76 @@
+# === Windows System Files ===
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+
+# === Windows Installer files ===
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# === macOS System Files ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# === Temporary files and backups ===
+*.swp
+*.swo
+*.bak
+*.tmp
+*~
+*.pyc
+*.pyo
+
+# === Folders with build results and cache ===
+vendor/
+node_modules/
+build/
+dist/
+target/
+
+# === IDE and Editor configs ===
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.iml
+*.iws
+*.ipr
+workspace.xml
+
+# === Secrets and keys ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# === Documentation ===
+docs/
+DECISIONS.md
+KNOWLEDGE.md
+PROJECT.md
+
+# === AI tool configs ===
+.opencode/
+.kilo/
+.superpowers/
+.worktrees/
+
+# === Test and build artifacts ===
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
