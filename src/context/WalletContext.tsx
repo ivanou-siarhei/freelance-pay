@@ -55,9 +55,35 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const detail = event.detail as BrowserWallet;
       setWallets((prev) => (prev.some((w) => w.info.uuid === detail.info.uuid) ? prev : [...prev, detail]));
     };
+
+    const requestProviders = () => {
+      window.dispatchEvent(new Event('eip6963:requestProviders'));
+    };
+
     window.addEventListener('eip6963:announceProvider', onAnnounce as EventListener);
-    window.dispatchEvent(new Event('eip6963:requestProviders'));
-    return () => window.removeEventListener('eip6963:announceProvider', onAnnounce as EventListener);
+    requestProviders();
+
+    // Повторный запрос, если кошельки подключились с задержкой
+    const t1 = setTimeout(requestProviders, 500);
+    const t2 = setTimeout(requestProviders, 2000);
+
+    // Fallback: если есть window.ethereum (MetaMask обычно это инжектит)
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      const provider = (window as any).ethereum;
+      setWallets((prev) => {
+        if (prev.some((w) => w.info.rdns === 'io.metamask')) return prev;
+        return [...prev, {
+          info: { uuid: 'metamask-fallback', name: 'MetaMask', rdns: 'io.metamask', icon: '' },
+          provider,
+        }];
+      });
+    }
+
+    return () => {
+      window.removeEventListener('eip6963:announceProvider', onAnnounce as EventListener);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   const loadRole = (a: string | null) => {
