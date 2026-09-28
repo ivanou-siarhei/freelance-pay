@@ -1,50 +1,75 @@
-// src/hooks/usePayouts.ts
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useWallet } from '../context/WalletContext';
+import { apiFetch, clearSession } from '../lib/api';
 
-interface Payout {
+export interface Payout {
   id: string;
-  escrow_id: string;
-  amount: number;
+  amount: string;
+  fee: string;
   dest_chain: string;
   dest_address: string;
-  status: 'pending' | 'processing' | 'done' | 'failed';
-  tx_hash: string | null;
-  bridge_tx_hash: string | null;
-  fee: number | null;
+  source_tx_hash: string;
+  dest_tx_hash: string | null;
+  status: 'submitted' | 'done' | 'failed';
   created_at: string;
 }
 
+export interface NewPayout {
+  amount: string;
+  fee: string;
+  destChain: string;
+  destAddress: string;
+  sourceTxHash: string;
+  destTxHash?: string | null;
+  status?: 'failed';
+}
+
 export function usePayouts() {
+  const { address, getSession } = useWallet();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchPayouts = useCallback(async (freelancerId?: string) => {
+  const withSession = useCallback(
+    async <T,>(fn: (token: string) => Promise<T>): Promise<T> => {
+      try {
+        return await fn(await getSession());
+      } catch (e: any) {
+        if (e?.status === 401) {
+          clearSession(address);
+          return fn(await getSession());
+        }
+        throw e;
+      }
+    },
+    [getSession, address]
+  );
+
+  const fetchPayouts = useCallback(async () => {
+    if (!address) return;
     setLoading(true);
     try {
-      const url = freelancerId
-        ? `/api/payouts?freelancer=${freelancerId}`
-        : '/api/payouts';
-      const res = await fetch(url);
-      const data = await res.json();
-      setPayouts(data);
+      setPayouts(await withSession((t) => apiFetch<Payout[]>('/api/payouts', t)));
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to load payouts');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [address, withSession]);
 
-  const createPayout = useCallback(async (
-    escrowId: string,
-    freelancerId: string,
-    destChain: string,
-    destAddress: string
-  ) => {
-    const res = await fetch('/api/payouts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escrowId, freelancerId, destChain, destAddress }),
-    });
-    return res.json();
-  }, []);
+  const recordPayout = useCallback(
+    async (p: NewPayout) => {
+      const saved = await withSession((t) => apiFetch<Payout>('/api/payouts', t, { method: 'POST', body: JSON.stringify(p) }));
+      setPayouts((prev) => [saved, ...prev]);
+      return saved;
+    },
+    [withSession]
+  );
 
-  return { payouts, loading, fetchPayouts, createPayout };
+  useEffect(() => {
+    setPayouts([]);
+  }, [address]);
+
+  return { payouts, loading, error, fetchPayouts, recordPayout };
 }

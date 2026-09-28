@@ -1,30 +1,39 @@
 # PayFlow
 
-Crypto payment platform with escrow support: streams, invoices, and cross-chain USDC payouts.
+Freelance escrow on the **Arc** blockchain. Clients lock USDC, freelancers deliver, the smart contract pays out. Freelancers can withdraw earnings cross-chain via Circle App Kit (CCTP).
 
-## Features
-
-- Escrow payments via `FlowPayEscrow` smart contract
-- Stream Manager and Invoice & Escrow Vault dashboard
-- Circle App Kit integration (in progress)
-- Cross-chain USDC payouts (planned)
+## Flow
+1. Connect wallet → pick a role: **Client** or **Freelancer**.
+2. Client creates an escrow (approve + `createEscrow`).
+3. Freelancer submits work before the deadline (`submitWork`).
+4. Client releases, or after a 3-day review window the freelancer claims.
+5. No delivery by deadline → client refunds. Disagreement → dispute (arbiter split, 30-day timeout → 50/50).
 
 ## Tech Stack
+React 19, Vite, TypeScript, viem, Circle App Kit, Express, PostgreSQL (Neon), Solidity/Hardhat.
 
-React 19, Vite, TypeScript, Express, PostgreSQL (Neon), Circle / viem, Solidity
+## Run locally
+```bash
+# 1. Contract
+cd contracts && npm install && cp .env.example .env   # fill PRIVATE_KEY (new key!) and ARBITRATOR_ADDRESS
+npx hardhat test
+npm run deploy:arc                                     # copy the printed address
 
-## Run Locally
+# 2. App
+cd .. && npm install && cp .env.example .env           # DATABASE_URL, SESSION_SECRET, VITE_ESCROW_ADDRESS
+npm run server    # API on :3001
+npm run dev       # UI on :3000 (proxies /api)
+```
 
-**Prerequisites:** Node.js
-
-1. `npm install`
-2. Copy `.env.example` to `.env` and fill in the values (`DATABASE_URL`, `CIRCLE_API_KEY`, etc.)
-3. `npm run dev` — app runs at `http://localhost:3000`
+Arc Testnet: chain ID `5042002`, RPC `https://rpc.testnet.arc.io`, explorer https://testnet.arcscan.app, test USDC from faucet.circle.com.
 
 ## Scripts
-
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start dev server |
+| `npm run dev` | Frontend dev server |
+| `npm run server` | Backend (watch mode) |
+| `npm test` | Backend unit tests (vitest) |
 | `npm run build` | Production build |
-| `npm run lint` | Type-check (`tsc --noEmit`) |
+| `npm run lint` | Type-check |
+
+See `SECURITY.md` before deploying.

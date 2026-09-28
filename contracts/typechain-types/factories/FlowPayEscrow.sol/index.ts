@@ -4,4 +4,6 @@
 export { FlowPayEscrow__factory } from "./FlowPayEscrow__factory";
 export { IERC20__factory } from "./IERC20__factory";
 export { Ownable__factory } from "./Ownable__factory";
+export { Ownable2Step__factory } from "./Ownable2Step__factory";
+export { ReentrancyGuard__factory } from "./ReentrancyGuard__factory";
 export { SafeERC20__factory } from "./SafeERC20__factory";

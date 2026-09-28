@@ -1,36 +1,35 @@
-CREATE TABLE IF NOT EXISTS freelancer_profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  arc_address VARCHAR(42) NOT NULL,
-  default_chain VARCHAR(20),
-  default_destination_address VARCHAR(42),
-  email VARCHAR(255),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Все адреса хранятся в нижнем регистре, чтобы сравнение не зависело от checksum-формы
 
-CREATE TABLE IF NOT EXISTS payouts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  escrow_id VARCHAR(20) NOT NULL,
-  freelancer_id UUID REFERENCES freelancer_profiles(id),
-  amount NUMERIC(18,6) NOT NULL,
-  source_chain VARCHAR(20) DEFAULT 'Arc',
-  dest_chain VARCHAR(20) NOT NULL,
-  dest_address VARCHAR(42) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
-  tx_hash VARCHAR(66),
-  bridge_tx_hash VARCHAR(66),
-  fee NUMERIC(18,6),
+CREATE TABLE IF NOT EXISTS user_profiles (
+  address VARCHAR(42) PRIMARY KEY CHECK (address ~ '^0x[0-9a-f]{40}$'),
+  default_chain VARCHAR(32),
+  default_destination_address VARCHAR(42) CHECK (default_destination_address IS NULL OR default_destination_address ~ '^0x[0-9a-f]{40}$'),
+  email VARCHAR(255),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS tx_log (
-  id SERIAL PRIMARY KEY,
-  payout_id UUID REFERENCES payouts(id),
-  event_type VARCHAR(30),
-  payload JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS auth_nonces (
+  nonce VARCHAR(64) PRIMARY KEY,
+  address VARCHAR(42) NOT NULL,
+  message TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_auth_nonces_expires ON auth_nonces(expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_payouts_freelancer ON payouts(freelancer_id);
-CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
-CREATE INDEX IF NOT EXISTS idx_tx_log_payout ON tx_log(payout_id);
+-- Выплаты (бридж USDC с Arc) делает сам фрилансер из своего кошелька.
+-- Бэкенд только хранит историю и проверяет, что исходная транзакция реально от этого адреса.
+CREATE TABLE IF NOT EXISTS bridge_payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  address VARCHAR(42) NOT NULL,
+  amount NUMERIC(24,6) NOT NULL CHECK (amount > 0),
+  fee NUMERIC(24,6) NOT NULL DEFAULT 0,
+  dest_chain VARCHAR(32) NOT NULL,
+  dest_address VARCHAR(42) NOT NULL,
+  source_tx_hash VARCHAR(66) NOT NULL UNIQUE,
+  dest_tx_hash VARCHAR(66),
+  status VARCHAR(16) NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted','done','failed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bridge_payouts_address ON bridge_payouts(address, created_at DESC);

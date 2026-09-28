@@ -1,24 +1,26 @@
-import React, { useEffect } from 'react';
-import { useWallet } from '../hooks/useWallet';
+import React, { useState } from 'react';
+import { useWallet } from '../context/WalletContext';
+import { readableError, shortAddr } from '../lib/arc';
 import styles from './WalletConnector.module.scss';
 
 export default function WalletConnector() {
-  const { wallet, wallets, discover, connect, disconnect } = useWallet();
+  const { wallets, address, isArc, connect, disconnect, switchToArc } = useWallet();
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    discover();
-  }, [discover]);
-
-  if (wallet.connected) {
+  if (address) {
     return (
       <div className={styles.connector}>
-        <span className={styles.status}>
-          <span className={styles.dot} />
-          {wallet.chain}
-        </span>
-        <span className={styles.address}>
-          {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
-        </span>
+        {isArc ? (
+          <span className={styles.status}>
+            <span className={styles.dot} />
+            Arc Testnet
+          </span>
+        ) : (
+          <button className={styles.walletBtn} onClick={() => switchToArc().catch((e) => setError(readableError(e)))}>
+            Switch to Arc
+          </button>
+        )}
+        <span className={styles.address}>{shortAddr(address)}</span>
         <button onClick={disconnect} className={styles.disconnect}>
           Disconnect
         </button>
@@ -34,16 +36,18 @@ export default function WalletConnector() {
         <div className={styles.walletList}>
           {wallets.map((w) => (
             <button
-              key={w.info.rdns}
-              onClick={() => connect(w.provider)}
+              key={w.info.uuid}
+              onClick={() => connect(w).catch((e) => setError(readableError(e)))}
               className={styles.walletBtn}
             >
-              <img src={w.info.icon} alt={w.info.name} width={20} height={20} />
+              {/* иконка приходит от расширения: рендерим только data:image, без внешних URL */}
+              {w.info.icon?.startsWith('data:image/') && <img src={w.info.icon} alt="" width={20} height={20} />}
               {w.info.name}
             </button>
           ))}
         </div>
       )}
+      {error && <span className={styles.noWallet} style={{ color: 'var(--status-danger)' }}>{error}</span>}
     </div>
   );
 }

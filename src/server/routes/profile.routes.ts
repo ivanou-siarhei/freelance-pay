@@ -1,32 +1,41 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { query } from '../db/neon';
+import { requireAuth, AuthedRequest } from '../middleware/security';
+import { destChain, normAddress, optionalEmail } from '../lib/validation';
 
 export const profileRoutes = Router();
+profileRoutes.use(requireAuth);
 
-profileRoutes.get('/:id', async (req: Request, res: Response) => {
+// Профиль доступен только владельцу кошелька: адрес берётся из подписанной сессии, а не из URL
+profileRoutes.get('/me', async (req: AuthedRequest, res, next) => {
   try {
-    const rows = await query('SELECT * FROM freelancer_profiles WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    const rows = await query('SELECT * FROM user_profiles WHERE address = $1', [req.user!.address]);
+    res.json(rows[0] ?? { address: req.user!.address, default_chain: null, default_destination_address: null, email: null });
+  } catch (e) {
+    next(e);
   }
 });
 
-profileRoutes.put('/:id', async (req: Request, res: Response) => {
+profileRoutes.put('/me', async (req: AuthedRequest, res, next) => {
   try {
-    const { defaultChain, defaultDestinationAddress, email } = req.body;
+    const b = req.body ?? {};
+    const chain = b.defaultChain ? destChain(b.defaultChain) : null;
+    const dest = b.defaultDestinationAddress ? normAddress(b.defaultDestinationAddress, 'destination address') : null;
+    const email = optionalEmail(b.email);
+
     const rows = await query(
-      `UPDATE freelancer_profiles
-       SET default_chain = COALESCE($1, default_chain),
-           default_destination_address = COALESCE($2, default_destination_address),
-           email = COALESCE($3, email)
-       WHERE id = $4 RETURNING *`,
-      [defaultChain, defaultDestinationAddress, email, req.params.id]
+      `INSERT INTO user_profiles (address, default_chain, default_destination_address, email)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (address) DO UPDATE SET
+         default_chain = EXCLUDED.default_chain,
+         default_destination_address = EXCLUDED.default_destination_address,
+         email = EXCLUDED.email,
+         updated_at = NOW()
+       RETURNING *`,
+      [req.user!.address, chain, dest, email]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+  } catch (e) {
+    next(e);
   }
 });

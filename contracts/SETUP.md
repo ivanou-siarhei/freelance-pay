@@ -32,7 +32,8 @@ REPORT_GAS=true npx hardhat test
 ```
 contracts/
 ├── FlowPayEscrow.sol          # основной контракт
-├── MockERC20.sol              # мок-токен только для тестов
+├── contracts/MockERC20.sol    # мок-токен только для тестов
+├── scripts/deploy.ts          # деплой (нужен ARBITRATOR_ADDRESS)
 ├── test/
 │   └── FlowPayEscrow.test.ts  # тесты
 ├── hardhat.config.ts

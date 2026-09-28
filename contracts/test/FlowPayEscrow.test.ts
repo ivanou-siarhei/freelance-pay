@@ -4,351 +4,155 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { FlowPayEscrow, MockERC20 } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
-// ─────────────────────────────────────────────
-//  Вспомогательные константы
-// ─────────────────────────────────────────────
-const USDC_DECIMALS = 6;
 const ONE_DAY = 24 * 60 * 60;
-const SEVEN_DAYS = 7 * ONE_DAY;
+const usdc = (n: number) => ethers.parseUnits(n.toString(), 6);
 
-function usdc(amount: number): bigint {
-  return ethers.parseUnits(amount.toString(), USDC_DECIMALS);
-}
-
-// ─────────────────────────────────────────────
-//  Тесты
-// ─────────────────────────────────────────────
 describe("FlowPayEscrow", function () {
   let escrow: FlowPayEscrow;
   let token: MockERC20;
-
-  let arbitrator: SignerWithAddress;
-  let client: SignerWithAddress;
-  let freelancer: SignerWithAddress;
-  let stranger: SignerWithAddress;
-
+  let arbitrator: SignerWithAddress, client: SignerWithAddress, freelancer: SignerWithAddress, stranger: SignerWithAddress;
   let deadline: number;
+  const AMOUNT = usdc(1000);
+  const DESC = "Landing page redesign";
 
-  // ── Деплой перед каждым тестом ──────────────
   beforeEach(async function () {
     [arbitrator, client, freelancer, stranger] = await ethers.getSigners();
-
-    // Деплоим MockERC20 (имитация USDC)
-    const TokenFactory = await ethers.getContractFactory("MockERC20");
-    token = await TokenFactory.deploy("USD Coin", "USDC", USDC_DECIMALS);
-
-    // Минтим клиенту 10 000 USDC
+    token = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
     await token.mint(client.address, usdc(10_000));
-
-    // Деплоим FlowPayEscrow
-    const EscrowFactory = await ethers.getContractFactory("FlowPayEscrow");
-    escrow = await EscrowFactory.deploy(
-      await token.getAddress(),
-      arbitrator.address
-    );
-
-    // Дедлайн = текущее время + 7 дней
-    const now = await time.latest();
-    deadline = now + SEVEN_DAYS;
-
-    // Клиент даёт approve контракту на 1 000 USDC
-    await token.connect(client).approve(await escrow.getAddress(), usdc(1_000));
+    escrow = await (await ethers.getContractFactory("FlowPayEscrow")).deploy(await token.getAddress(), arbitrator.address);
+    deadline = (await time.latest()) + 7 * ONE_DAY;
+    await token.connect(client).approve(await escrow.getAddress(), ethers.MaxUint256);
   });
 
-  // ════════════════════════════════════════════
-  //  1. createEscrow — создание сделки
-  // ════════════════════════════════════════════
+  async function create() {
+    await escrow.connect(client).createEscrow(freelancer.address, AMOUNT, deadline, DESC);
+    return 1n;
+  }
+
   describe("createEscrow", function () {
-    it("создаёт эскроу и блокирует USDC на контракте", async function () {
-      await expect(
-        escrow.connect(client).createEscrow(freelancer.address, usdc(500), deadline)
-      ).to.emit(escrow, "EscrowCreated");
-
-      const deal = await escrow.escrows(1);
-      expect(deal.client).to.equal(client.address);
-      expect(deal.freelancer).to.equal(freelancer.address);
-      expect(deal.amount).to.equal(usdc(500));
-      expect(deal.status).to.equal(0); // FundsLocked
-
-      // Средства должны быть на контракте
-      const contractBalance = await token.balanceOf(await escrow.getAddress());
-      expect(contractBalance).to.equal(usdc(500));
+    it("блокирует USDC и индексирует сделку по участникам", async function () {
+      await expect(escrow.connect(client).createEscrow(freelancer.address, AMOUNT, deadline, DESC))
+        .to.emit(escrow, "EscrowCreated")
+        .withArgs(1, client.address, freelancer.address, AMOUNT, deadline, DESC);
+      expect(await token.balanceOf(await escrow.getAddress())).to.equal(AMOUNT);
+      expect(await escrow.getClientEscrowIds(client.address)).to.deep.equal([1n]);
+      expect(await escrow.getFreelancerEscrowIds(freelancer.address)).to.deep.equal([1n]);
+      const e = await escrow.getEscrow(1);
+      expect(e.description).to.equal(DESC);
+      expect(e.status).to.equal(0);
     });
 
-    it("возвращает правильный ID сделки", async function () {
-      const tx = await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(100), deadline);
-      const receipt = await tx.wait();
-      // ID должен быть 1 (первая сделка)
-      const deal = await escrow.escrows(1);
-      expect(deal.id).to.equal(1n);
+    it("revert: некорректные параметры", async function () {
+      const c = escrow.connect(client);
+      await expect(c.createEscrow(ethers.ZeroAddress, AMOUNT, deadline, DESC)).to.be.revertedWithCustomError(escrow, "InvalidAddress");
+      await expect(c.createEscrow(client.address, AMOUNT, deadline, DESC)).to.be.revertedWithCustomError(escrow, "InvalidAddress");
+      await expect(c.createEscrow(freelancer.address, 0, deadline, DESC)).to.be.revertedWithCustomError(escrow, "InvalidAmount");
+      await expect(c.createEscrow(freelancer.address, AMOUNT, (await time.latest()) - 1, DESC)).to.be.revertedWithCustomError(escrow, "InvalidDeadline");
+      await expect(c.createEscrow(freelancer.address, AMOUNT, (await time.latest()) + 400 * ONE_DAY, DESC)).to.be.revertedWithCustomError(escrow, "InvalidDeadline");
+      await expect(c.createEscrow(freelancer.address, AMOUNT, deadline, "")).to.be.revertedWithCustomError(escrow, "InvalidDescription");
+      await expect(c.createEscrow(freelancer.address, AMOUNT, deadline, "x".repeat(281))).to.be.revertedWithCustomError(escrow, "InvalidDescription");
     });
 
-    it("revert: нулевой адрес фрилансера", async function () {
-      await expect(
-        escrow.connect(client).createEscrow(ethers.ZeroAddress, usdc(100), deadline)
-      ).to.be.revertedWithCustomError(escrow, "InvalidAddress");
-    });
-
-    it("revert: клиент и фрилансер — один адрес", async function () {
-      await expect(
-        escrow.connect(client).createEscrow(client.address, usdc(100), deadline)
-      ).to.be.revertedWithCustomError(escrow, "InvalidAddress");
-    });
-
-    it("revert: сумма равна нулю", async function () {
-      await expect(
-        escrow.connect(client).createEscrow(freelancer.address, 0n, deadline)
-      ).to.be.revertedWithCustomError(escrow, "InvalidAmount");
-    });
-
-    it("revert: дедлайн в прошлом", async function () {
-      const pastDeadline = (await time.latest()) - ONE_DAY;
-      await expect(
-        escrow.connect(client).createEscrow(freelancer.address, usdc(100), pastDeadline)
-      ).to.be.revertedWithCustomError(escrow, "InvalidDeadline");
+    it("revert: арбитр не может быть стороной сделки", async function () {
+      await expect(escrow.connect(client).createEscrow(arbitrator.address, AMOUNT, deadline, DESC)).to.be.revertedWithCustomError(escrow, "ArbitratorIsParty");
     });
   });
 
-  // ════════════════════════════════════════════
-  //  2. releaseFunds — клиент подтверждает выплату
-  // ════════════════════════════════════════════
-  describe("releaseFunds", function () {
-    beforeEach(async function () {
-      await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(500), deadline);
+  describe("submitWork / releaseFunds / claimAfterReview", function () {
+    beforeEach(create);
+
+    it("заказчик подтверждает и платит", async function () {
+      await escrow.connect(freelancer).submitWork(1);
+      await expect(escrow.connect(client).releaseFunds(1)).to.emit(escrow, "FundsReleased").withArgs(1, freelancer.address, AMOUNT);
+      expect(await token.balanceOf(freelancer.address)).to.equal(AMOUNT);
+      await expect(escrow.connect(client).releaseFunds(1)).to.be.revertedWithCustomError(escrow, "InvalidStatus");
     });
 
-    it("выплачивает всю сумму фрилансеру", async function () {
-      const balanceBefore = await token.balanceOf(freelancer.address);
-
-      await expect(escrow.connect(client).releaseFunds(1))
-        .to.emit(escrow, "FundsReleased")
-        .withArgs(1n, freelancer.address, usdc(500));
-
-      const balanceAfter = await token.balanceOf(freelancer.address);
-      expect(balanceAfter - balanceBefore).to.equal(usdc(500));
-
-      const deal = await escrow.escrows(1);
-      expect(deal.status).to.equal(1); // Completed
+    it("только заказчик может release", async function () {
+      await expect(escrow.connect(freelancer).releaseFunds(1)).to.be.revertedWithCustomError(escrow, "Unauthorized");
+      await expect(escrow.connect(stranger).releaseFunds(1)).to.be.revertedWithCustomError(escrow, "Unauthorized");
     });
 
-    it("revert: не клиент пытается подтвердить", async function () {
-      await expect(
-        escrow.connect(freelancer).releaseFunds(1)
-      ).to.be.revertedWithCustomError(escrow, "Unauthorized");
+    it("нельзя забрать деньги без сдачи работы (старая дыра claimAfterDeadline)", async function () {
+      await time.increaseTo(deadline + 10 * ONE_DAY);
+      await expect(escrow.connect(freelancer).claimAfterReview(1)).to.be.revertedWithCustomError(escrow, "InvalidStatus");
     });
 
-    it("revert: посторонний адрес пытается подтвердить", async function () {
-      await expect(
-        escrow.connect(stranger).releaseFunds(1)
-      ).to.be.revertedWithCustomError(escrow, "Unauthorized");
+    it("фрилансер забирает оплату только после окна проверки", async function () {
+      await escrow.connect(freelancer).submitWork(1);
+      await expect(escrow.connect(freelancer).claimAfterReview(1)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      await time.increase(3 * ONE_DAY);
+      await expect(escrow.connect(freelancer).claimAfterReview(1)).to.emit(escrow, "FundsClaimedAfterReview");
+      expect(await token.balanceOf(freelancer.address)).to.equal(AMOUNT);
     });
 
-    it("revert: двойная выплата невозможна", async function () {
-      await escrow.connect(client).releaseFunds(1);
-      await expect(
-        escrow.connect(client).releaseFunds(1)
-      ).to.be.revertedWithCustomError(escrow, "InvalidStatus");
-    });
-
-    it("revert: несуществующая сделка", async function () {
-      await expect(
-        escrow.connect(client).releaseFunds(999)
-      ).to.be.revertedWithCustomError(escrow, "EscrowNotFound");
-    });
-  });
-
-  // ════════════════════════════════════════════
-  //  3. claimAfterDeadline — фрилансер забирает
-  //     средства если клиент молчит после дедлайна
-  // ════════════════════════════════════════════
-  describe("claimAfterDeadline", function () {
-    beforeEach(async function () {
-      await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(500), deadline);
-    });
-
-    it("фрилансер забирает средства после истечения дедлайна", async function () {
-      // Перематываем время вперёд за дедлайн
+    it("нельзя сдать работу после дедлайна", async function () {
       await time.increaseTo(deadline + 1);
-
-      const balanceBefore = await token.balanceOf(freelancer.address);
-
-      await expect(escrow.connect(freelancer).claimAfterDeadline(1))
-        .to.emit(escrow, "FundsClaimedAfterDeadline")
-        .withArgs(1n, freelancer.address, usdc(500));
-
-      const balanceAfter = await token.balanceOf(freelancer.address);
-      expect(balanceAfter - balanceBefore).to.equal(usdc(500));
-
-      const deal = await escrow.escrows(1);
-      expect(deal.status).to.equal(1); // Completed
-    });
-
-    it("revert: дедлайн ещё не наступил", async function () {
-      await expect(
-        escrow.connect(freelancer).claimAfterDeadline(1)
-      ).to.be.revertedWithCustomError(escrow, "DeadlineNotMet");
-    });
-
-    it("revert: не фрилансер пытается забрать", async function () {
-      await time.increaseTo(deadline + 1);
-      await expect(
-        escrow.connect(client).claimAfterDeadline(1)
-      ).to.be.revertedWithCustomError(escrow, "Unauthorized");
-    });
-
-    it("revert: средства уже выплачены через releaseFunds", async function () {
-      await escrow.connect(client).releaseFunds(1);
-      await time.increaseTo(deadline + 1);
-      await expect(
-        escrow.connect(freelancer).claimAfterDeadline(1)
-      ).to.be.revertedWithCustomError(escrow, "InvalidStatus");
+      await expect(escrow.connect(freelancer).submitWork(1)).to.be.revertedWithCustomError(escrow, "TooLate");
     });
   });
 
-  // ════════════════════════════════════════════
-  //  4. initiateDispute — открытие спора
-  // ════════════════════════════════════════════
-  describe("initiateDispute", function () {
-    beforeEach(async function () {
-      await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(500), deadline);
+  describe("возвраты", function () {
+    beforeEach(create);
+
+    it("заказчик возвращает деньги, если работа не сдана к дедлайну", async function () {
+      await expect(escrow.connect(client).refundAfterDeadline(1)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      await time.increaseTo(deadline + 1);
+      await expect(escrow.connect(client).refundAfterDeadline(1)).to.emit(escrow, "Refunded");
+      expect(await token.balanceOf(client.address)).to.equal(usdc(10_000));
     });
 
-    it("клиент может открыть диспут в любой момент", async function () {
-      await expect(escrow.connect(client).initiateDispute(1))
-        .to.emit(escrow, "DisputeInitiated")
-        .withArgs(1n, client.address);
-
-      const deal = await escrow.escrows(1);
-      expect(deal.status).to.equal(2); // Disputed
+    it("refundAfterDeadline недоступен, если работа сдана", async function () {
+      await escrow.connect(freelancer).submitWork(1);
+      await time.increaseTo(deadline + 1);
+      await expect(escrow.connect(client).refundAfterDeadline(1)).to.be.revertedWithCustomError(escrow, "InvalidStatus");
     });
 
-    it("фрилансер может открыть диспут в любой момент", async function () {
-      await expect(escrow.connect(freelancer).initiateDispute(1))
-        .to.emit(escrow, "DisputeInitiated")
-        .withArgs(1n, freelancer.address);
-    });
-
-    it("диспут открывается до наступления дедлайна (важная проверка)", async function () {
-      // Дедлайн ещё не прошёл — диспут должен открыться без ошибок
-      const now = await time.latest();
-      expect(now).to.be.lessThan(deadline);
-
-      await expect(
-        escrow.connect(client).initiateDispute(1)
-      ).to.not.be.reverted;
-    });
-
-    it("revert: посторонний не может открыть диспут", async function () {
-      await expect(
-        escrow.connect(stranger).initiateDispute(1)
-      ).to.be.revertedWithCustomError(escrow, "Unauthorized");
-    });
-
-    it("revert: двойной диспут невозможен", async function () {
-      await escrow.connect(client).initiateDispute(1);
-      await expect(
-        escrow.connect(client).initiateDispute(1)
-      ).to.be.revertedWithCustomError(escrow, "InvalidStatus");
+    it("фрилансер может сам отменить сделку", async function () {
+      await expect(escrow.connect(freelancer).refundByFreelancer(1)).to.emit(escrow, "Refunded");
+      expect(await token.balanceOf(client.address)).to.equal(usdc(10_000));
     });
   });
 
-  // ════════════════════════════════════════════
-  //  5. resolveDispute — арбитр решает спор
-  // ════════════════════════════════════════════
-  describe("resolveDispute", function () {
+  describe("споры", function () {
     beforeEach(async function () {
-      await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(500), deadline);
+      await create();
       await escrow.connect(client).initiateDispute(1);
     });
 
-    it("арбитр возвращает средства клиенту", async function () {
-      const balanceBefore = await token.balanceOf(client.address);
+    it("двойной спор невозможен", async function () {
+      await expect(escrow.connect(freelancer).initiateDispute(1)).to.be.revertedWithCustomError(escrow, "InvalidStatus");
+    });
 
-      await expect(escrow.connect(arbitrator).resolveDispute(1, true))
+    it("арбитр делит сумму частично", async function () {
+      await expect(escrow.connect(arbitrator).resolveDispute(1, usdc(300)))
         .to.emit(escrow, "DisputeResolved")
-        .withArgs(1n, client.address, usdc(500), 0n);
-
-      const balanceAfter = await token.balanceOf(client.address);
-      expect(balanceAfter - balanceBefore).to.equal(usdc(500));
-
-      const deal = await escrow.escrows(1);
-      expect(deal.status).to.equal(3); // Refunded
+        .withArgs(1, usdc(700), usdc(300), false);
+      expect(await token.balanceOf(freelancer.address)).to.equal(usdc(300));
+      expect(await token.balanceOf(client.address)).to.equal(usdc(9_700));
     });
 
-    it("арбитр выплачивает средства фрилансеру", async function () {
-      const balanceBefore = await token.balanceOf(freelancer.address);
-
-      await expect(escrow.connect(arbitrator).resolveDispute(1, false))
-        .to.emit(escrow, "DisputeResolved")
-        .withArgs(1n, freelancer.address, 0n, usdc(500));
-
-      const balanceAfter = await token.balanceOf(freelancer.address);
-      expect(balanceAfter - balanceBefore).to.equal(usdc(500));
-
-      const deal = await escrow.escrows(1);
-      expect(deal.status).to.equal(1); // Completed
+    it("revert: не арбитр / сплит больше суммы", async function () {
+      await expect(escrow.connect(stranger).resolveDispute(1, 0)).to.be.revertedWithCustomError(escrow, "NotOwner");
+      await expect(escrow.connect(arbitrator).resolveDispute(1, AMOUNT + 1n)).to.be.revertedWithCustomError(escrow, "InvalidSplit");
     });
 
-    it("revert: не арбитр пытается решить спор", async function () {
-      await expect(
-        escrow.connect(client).resolveDispute(1, true)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it("revert: нет активного диспута", async function () {
-      // Создаём вторую сделку без диспута
-      await token.connect(client).approve(await escrow.getAddress(), usdc(100));
-      await escrow
-        .connect(client)
-        .createEscrow(freelancer.address, usdc(100), deadline);
-
-      await expect(
-        escrow.connect(arbitrator).resolveDispute(2, true)
-      ).to.be.revertedWithCustomError(escrow, "InvalidStatus");
-    });
-
-    it("revert: двойное решение невозможно", async function () {
-      await escrow.connect(arbitrator).resolveDispute(1, true);
-      await expect(
-        escrow.connect(arbitrator).resolveDispute(1, true)
-      ).to.be.revertedWithCustomError(escrow, "InvalidStatus");
+    it("если арбитр молчит 30 дней, стороны делят 50/50", async function () {
+      await expect(escrow.connect(client).resolveDisputeByTimeout(1)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      await time.increase(30 * ONE_DAY);
+      await expect(escrow.connect(stranger).resolveDisputeByTimeout(1)).to.be.revertedWithCustomError(escrow, "Unauthorized");
+      await escrow.connect(freelancer).resolveDisputeByTimeout(1);
+      expect(await token.balanceOf(freelancer.address)).to.equal(usdc(500));
     });
   });
 
-  // ════════════════════════════════════════════
-  //  6. transferOwnership — смена арбитра
-  // ════════════════════════════════════════════
-  describe("transferOwnership", function () {
-    it("арбитр может передать права новому адресу", async function () {
-      await expect(
-        escrow.connect(arbitrator).transferOwnership(stranger.address)
-      )
-        .to.emit(escrow, "OwnershipTransferred")
-        .withArgs(arbitrator.address, stranger.address); // FIX: оба адреса корректны
-
+  describe("Ownable2Step", function () {
+    it("новый арбитр должен принять права", async function () {
+      await escrow.connect(arbitrator).transferOwnership(stranger.address);
+      expect(await escrow.owner()).to.equal(arbitrator.address);
+      await expect(escrow.connect(client).acceptOwnership()).to.be.revertedWithCustomError(escrow, "NotPendingOwner");
+      await escrow.connect(stranger).acceptOwnership();
       expect(await escrow.owner()).to.equal(stranger.address);
-    });
-
-    it("revert: передача нулевому адресу", async function () {
-      await expect(
-        escrow.connect(arbitrator).transferOwnership(ethers.ZeroAddress)
-      ).to.be.revertedWith("Ownable: new owner cannot be zero address");
-    });
-
-    it("revert: не владелец пытается передать права", async function () {
-      await expect(
-        escrow.connect(client).transferOwnership(stranger.address)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 });

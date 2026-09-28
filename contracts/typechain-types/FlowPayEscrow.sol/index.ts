@@ -4,4 +4,6 @@
 export type { FlowPayEscrow } from "./FlowPayEscrow";
 export type { IERC20 } from "./IERC20";
 export type { Ownable } from "./Ownable";
+export type { Ownable2Step } from "./Ownable2Step";
+export type { ReentrancyGuard } from "./ReentrancyGuard";
 export type { SafeERC20 } from "./SafeERC20";

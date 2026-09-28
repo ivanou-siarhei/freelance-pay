@@ -23,17 +23,68 @@ import type {
   TypedContractMethod,
 } from "../common";
 
+export declare namespace FlowPayEscrow {
+  export type EscrowStruct = {
+    id: BigNumberish;
+    client: AddressLike;
+    freelancer: AddressLike;
+    amount: BigNumberish;
+    createdAt: BigNumberish;
+    deadline: BigNumberish;
+    submittedAt: BigNumberish;
+    disputedAt: BigNumberish;
+    status: BigNumberish;
+    description: string;
+  };
+
+  export type EscrowStructOutput = [
+    id: bigint,
+    client: string,
+    freelancer: string,
+    amount: bigint,
+    createdAt: bigint,
+    deadline: bigint,
+    submittedAt: bigint,
+    disputedAt: bigint,
+    status: bigint,
+    description: string
+  ] & {
+    id: bigint;
+    client: string;
+    freelancer: string;
+    amount: bigint;
+    createdAt: bigint;
+    deadline: bigint;
+    submittedAt: bigint;
+    disputedAt: bigint;
+    status: bigint;
+    description: string;
+  };
+}
+
 export interface FlowPayEscrowInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "claimAfterDeadline"
+      | "DISPUTE_TIMEOUT"
+      | "MAX_DESCRIPTION_LENGTH"
+      | "MAX_DURATION"
+      | "REVIEW_PERIOD"
+      | "acceptOwnership"
+      | "claimAfterReview"
       | "createEscrow"
       | "escrowIdCounter"
-      | "escrows"
+      | "getClientEscrowIds"
+      | "getEscrow"
+      | "getFreelancerEscrowIds"
       | "initiateDispute"
       | "owner"
+      | "pendingOwner"
+      | "refundAfterDeadline"
+      | "refundByFreelancer"
       | "releaseFunds"
       | "resolveDispute"
+      | "resolveDisputeByTimeout"
+      | "submitWork"
       | "token"
       | "transferOwnership"
   ): FunctionFragment;
@@ -43,26 +94,57 @@ export interface FlowPayEscrowInterface extends Interface {
       | "DisputeInitiated"
       | "DisputeResolved"
       | "EscrowCreated"
-      | "FundsClaimedAfterDeadline"
+      | "FundsClaimedAfterReview"
       | "FundsReleased"
+      | "OwnershipTransferStarted"
       | "OwnershipTransferred"
+      | "Refunded"
+      | "WorkSubmitted"
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "claimAfterDeadline",
+    functionFragment: "DISPUTE_TIMEOUT",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MAX_DESCRIPTION_LENGTH",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MAX_DURATION",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "REVIEW_PERIOD",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "acceptOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "claimAfterReview",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "createEscrow",
-    values: [AddressLike, BigNumberish, BigNumberish]
+    values: [AddressLike, BigNumberish, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "escrowIdCounter",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "escrows",
+    functionFragment: "getClientEscrowIds",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getEscrow",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getFreelancerEscrowIds",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "initiateDispute",
@@ -70,12 +152,32 @@ export interface FlowPayEscrowInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "pendingOwner",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "refundAfterDeadline",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "refundByFreelancer",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "releaseFunds",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "resolveDispute",
-    values: [BigNumberish, boolean]
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "resolveDisputeByTimeout",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "submitWork",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "token", values?: undefined): string;
   encodeFunctionData(
@@ -84,7 +186,27 @@ export interface FlowPayEscrowInterface extends Interface {
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "claimAfterDeadline",
+    functionFragment: "DISPUTE_TIMEOUT",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MAX_DESCRIPTION_LENGTH",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MAX_DURATION",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "REVIEW_PERIOD",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "acceptOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "claimAfterReview",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -95,12 +217,32 @@ export interface FlowPayEscrowInterface extends Interface {
     functionFragment: "escrowIdCounter",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "escrows", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getClientEscrowIds",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "getEscrow", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getFreelancerEscrowIds",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "initiateDispute",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingOwner",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "refundAfterDeadline",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "refundByFreelancer",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "releaseFunds",
     data: BytesLike
@@ -109,6 +251,11 @@ export interface FlowPayEscrowInterface extends Interface {
     functionFragment: "resolveDispute",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "resolveDisputeByTimeout",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "submitWork", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "token", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
@@ -132,21 +279,21 @@ export namespace DisputeInitiatedEvent {
 export namespace DisputeResolvedEvent {
   export type InputTuple = [
     escrowId: BigNumberish,
-    recipient: AddressLike,
-    amountRefunded: BigNumberish,
-    amountPaidToFreelancer: BigNumberish
+    toClient: BigNumberish,
+    toFreelancer: BigNumberish,
+    byTimeout: boolean
   ];
   export type OutputTuple = [
     escrowId: bigint,
-    recipient: string,
-    amountRefunded: bigint,
-    amountPaidToFreelancer: bigint
+    toClient: bigint,
+    toFreelancer: bigint,
+    byTimeout: boolean
   ];
   export interface OutputObject {
     escrowId: bigint;
-    recipient: string;
-    amountRefunded: bigint;
-    amountPaidToFreelancer: bigint;
+    toClient: bigint;
+    toFreelancer: bigint;
+    byTimeout: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -160,14 +307,16 @@ export namespace EscrowCreatedEvent {
     client: AddressLike,
     freelancer: AddressLike,
     amount: BigNumberish,
-    deadline: BigNumberish
+    deadline: BigNumberish,
+    description: string
   ];
   export type OutputTuple = [
     escrowId: bigint,
     client: string,
     freelancer: string,
     amount: bigint,
-    deadline: bigint
+    deadline: bigint,
+    description: string
   ];
   export interface OutputObject {
     escrowId: bigint;
@@ -175,6 +324,7 @@ export namespace EscrowCreatedEvent {
     freelancer: string;
     amount: bigint;
     deadline: bigint;
+    description: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -182,7 +332,7 @@ export namespace EscrowCreatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace FundsClaimedAfterDeadlineEvent {
+export namespace FundsClaimedAfterReviewEvent {
   export type InputTuple = [
     escrowId: BigNumberish,
     freelancer: AddressLike,
@@ -226,12 +376,63 @@ export namespace FundsReleasedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace OwnershipTransferStartedEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace OwnershipTransferredEvent {
   export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
   export type OutputTuple = [previousOwner: string, newOwner: string];
   export interface OutputObject {
     previousOwner: string;
     newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RefundedEvent {
+  export type InputTuple = [
+    escrowId: BigNumberish,
+    client: AddressLike,
+    amount: BigNumberish,
+    initiatedBy: AddressLike
+  ];
+  export type OutputTuple = [
+    escrowId: bigint,
+    client: string,
+    amount: bigint,
+    initiatedBy: string
+  ];
+  export interface OutputObject {
+    escrowId: bigint;
+    client: string;
+    amount: bigint;
+    initiatedBy: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace WorkSubmittedEvent {
+  export type InputTuple = [escrowId: BigNumberish, freelancer: AddressLike];
+  export type OutputTuple = [escrowId: bigint, freelancer: string];
+  export interface OutputObject {
+    escrowId: bigint;
+    freelancer: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -282,54 +483,90 @@ export interface FlowPayEscrow extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  claimAfterDeadline: TypedContractMethod<
-    [_escrowId: BigNumberish],
+  DISPUTE_TIMEOUT: TypedContractMethod<[], [bigint], "view">;
+
+  MAX_DESCRIPTION_LENGTH: TypedContractMethod<[], [bigint], "view">;
+
+  MAX_DURATION: TypedContractMethod<[], [bigint], "view">;
+
+  REVIEW_PERIOD: TypedContractMethod<[], [bigint], "view">;
+
+  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  claimAfterReview: TypedContractMethod<
+    [id: BigNumberish],
     [void],
     "nonpayable"
   >;
 
   createEscrow: TypedContractMethod<
-    [_freelancer: AddressLike, _amount: BigNumberish, _deadline: BigNumberish],
+    [
+      _freelancer: AddressLike,
+      _amount: BigNumberish,
+      _deadline: BigNumberish,
+      _description: string
+    ],
     [bigint],
     "nonpayable"
   >;
 
   escrowIdCounter: TypedContractMethod<[], [bigint], "view">;
 
-  escrows: TypedContractMethod<
-    [arg0: BigNumberish],
-    [
-      [bigint, string, string, bigint, bigint, bigint] & {
-        id: bigint;
-        client: string;
-        freelancer: string;
-        amount: bigint;
-        deadline: bigint;
-        status: bigint;
-      }
-    ],
+  getClientEscrowIds: TypedContractMethod<
+    [client: AddressLike],
+    [bigint[]],
+    "view"
+  >;
+
+  getEscrow: TypedContractMethod<
+    [id: BigNumberish],
+    [FlowPayEscrow.EscrowStructOutput],
+    "view"
+  >;
+
+  getFreelancerEscrowIds: TypedContractMethod<
+    [freelancer: AddressLike],
+    [bigint[]],
     "view"
   >;
 
   initiateDispute: TypedContractMethod<
-    [_escrowId: BigNumberish],
+    [id: BigNumberish],
     [void],
     "nonpayable"
   >;
 
   owner: TypedContractMethod<[], [string], "view">;
 
-  releaseFunds: TypedContractMethod<
-    [_escrowId: BigNumberish],
+  pendingOwner: TypedContractMethod<[], [string], "view">;
+
+  refundAfterDeadline: TypedContractMethod<
+    [id: BigNumberish],
     [void],
     "nonpayable"
   >;
 
-  resolveDispute: TypedContractMethod<
-    [_escrowId: BigNumberish, _refundToClient: boolean],
+  refundByFreelancer: TypedContractMethod<
+    [id: BigNumberish],
     [void],
     "nonpayable"
   >;
+
+  releaseFunds: TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
+
+  resolveDispute: TypedContractMethod<
+    [id: BigNumberish, toFreelancer: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  resolveDisputeByTimeout: TypedContractMethod<
+    [id: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  submitWork: TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
 
   token: TypedContractMethod<[], [string], "view">;
 
@@ -344,12 +581,32 @@ export interface FlowPayEscrow extends BaseContract {
   ): T;
 
   getFunction(
-    nameOrSignature: "claimAfterDeadline"
-  ): TypedContractMethod<[_escrowId: BigNumberish], [void], "nonpayable">;
+    nameOrSignature: "DISPUTE_TIMEOUT"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "MAX_DESCRIPTION_LENGTH"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "MAX_DURATION"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "REVIEW_PERIOD"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "acceptOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "claimAfterReview"
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "createEscrow"
   ): TypedContractMethod<
-    [_freelancer: AddressLike, _amount: BigNumberish, _deadline: BigNumberish],
+    [
+      _freelancer: AddressLike,
+      _amount: BigNumberish,
+      _deadline: BigNumberish,
+      _description: string
+    ],
     [bigint],
     "nonpayable"
   >;
@@ -357,37 +614,49 @@ export interface FlowPayEscrow extends BaseContract {
     nameOrSignature: "escrowIdCounter"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "escrows"
+    nameOrSignature: "getClientEscrowIds"
+  ): TypedContractMethod<[client: AddressLike], [bigint[]], "view">;
+  getFunction(
+    nameOrSignature: "getEscrow"
   ): TypedContractMethod<
-    [arg0: BigNumberish],
-    [
-      [bigint, string, string, bigint, bigint, bigint] & {
-        id: bigint;
-        client: string;
-        freelancer: string;
-        amount: bigint;
-        deadline: bigint;
-        status: bigint;
-      }
-    ],
+    [id: BigNumberish],
+    [FlowPayEscrow.EscrowStructOutput],
     "view"
   >;
   getFunction(
+    nameOrSignature: "getFreelancerEscrowIds"
+  ): TypedContractMethod<[freelancer: AddressLike], [bigint[]], "view">;
+  getFunction(
     nameOrSignature: "initiateDispute"
-  ): TypedContractMethod<[_escrowId: BigNumberish], [void], "nonpayable">;
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "pendingOwner"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "refundAfterDeadline"
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "refundByFreelancer"
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "releaseFunds"
-  ): TypedContractMethod<[_escrowId: BigNumberish], [void], "nonpayable">;
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "resolveDispute"
   ): TypedContractMethod<
-    [_escrowId: BigNumberish, _refundToClient: boolean],
+    [id: BigNumberish, toFreelancer: BigNumberish],
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "resolveDisputeByTimeout"
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "submitWork"
+  ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "token"
   ): TypedContractMethod<[], [string], "view">;
@@ -417,11 +686,11 @@ export interface FlowPayEscrow extends BaseContract {
     EscrowCreatedEvent.OutputObject
   >;
   getEvent(
-    key: "FundsClaimedAfterDeadline"
+    key: "FundsClaimedAfterReview"
   ): TypedContractEvent<
-    FundsClaimedAfterDeadlineEvent.InputTuple,
-    FundsClaimedAfterDeadlineEvent.OutputTuple,
-    FundsClaimedAfterDeadlineEvent.OutputObject
+    FundsClaimedAfterReviewEvent.InputTuple,
+    FundsClaimedAfterReviewEvent.OutputTuple,
+    FundsClaimedAfterReviewEvent.OutputObject
   >;
   getEvent(
     key: "FundsReleased"
@@ -431,11 +700,32 @@ export interface FlowPayEscrow extends BaseContract {
     FundsReleasedEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferStarted"
+  ): TypedContractEvent<
+    OwnershipTransferStartedEvent.InputTuple,
+    OwnershipTransferStartedEvent.OutputTuple,
+    OwnershipTransferStartedEvent.OutputObject
+  >;
+  getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "Refunded"
+  ): TypedContractEvent<
+    RefundedEvent.InputTuple,
+    RefundedEvent.OutputTuple,
+    RefundedEvent.OutputObject
+  >;
+  getEvent(
+    key: "WorkSubmitted"
+  ): TypedContractEvent<
+    WorkSubmittedEvent.InputTuple,
+    WorkSubmittedEvent.OutputTuple,
+    WorkSubmittedEvent.OutputObject
   >;
 
   filters: {
@@ -450,7 +740,7 @@ export interface FlowPayEscrow extends BaseContract {
       DisputeInitiatedEvent.OutputObject
     >;
 
-    "DisputeResolved(uint256,address,uint256,uint256)": TypedContractEvent<
+    "DisputeResolved(uint256,uint256,uint256,bool)": TypedContractEvent<
       DisputeResolvedEvent.InputTuple,
       DisputeResolvedEvent.OutputTuple,
       DisputeResolvedEvent.OutputObject
@@ -461,7 +751,7 @@ export interface FlowPayEscrow extends BaseContract {
       DisputeResolvedEvent.OutputObject
     >;
 
-    "EscrowCreated(uint256,address,address,uint256,uint256)": TypedContractEvent<
+    "EscrowCreated(uint256,address,address,uint256,uint256,string)": TypedContractEvent<
       EscrowCreatedEvent.InputTuple,
       EscrowCreatedEvent.OutputTuple,
       EscrowCreatedEvent.OutputObject
@@ -472,15 +762,15 @@ export interface FlowPayEscrow extends BaseContract {
       EscrowCreatedEvent.OutputObject
     >;
 
-    "FundsClaimedAfterDeadline(uint256,address,uint256)": TypedContractEvent<
-      FundsClaimedAfterDeadlineEvent.InputTuple,
-      FundsClaimedAfterDeadlineEvent.OutputTuple,
-      FundsClaimedAfterDeadlineEvent.OutputObject
+    "FundsClaimedAfterReview(uint256,address,uint256)": TypedContractEvent<
+      FundsClaimedAfterReviewEvent.InputTuple,
+      FundsClaimedAfterReviewEvent.OutputTuple,
+      FundsClaimedAfterReviewEvent.OutputObject
     >;
-    FundsClaimedAfterDeadline: TypedContractEvent<
-      FundsClaimedAfterDeadlineEvent.InputTuple,
-      FundsClaimedAfterDeadlineEvent.OutputTuple,
-      FundsClaimedAfterDeadlineEvent.OutputObject
+    FundsClaimedAfterReview: TypedContractEvent<
+      FundsClaimedAfterReviewEvent.InputTuple,
+      FundsClaimedAfterReviewEvent.OutputTuple,
+      FundsClaimedAfterReviewEvent.OutputObject
     >;
 
     "FundsReleased(uint256,address,uint256)": TypedContractEvent<
@@ -494,6 +784,17 @@ export interface FlowPayEscrow extends BaseContract {
       FundsReleasedEvent.OutputObject
     >;
 
+    "OwnershipTransferStarted(address,address)": TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+    OwnershipTransferStarted: TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+
     "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
@@ -503,6 +804,28 @@ export interface FlowPayEscrow extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
+    >;
+
+    "Refunded(uint256,address,uint256,address)": TypedContractEvent<
+      RefundedEvent.InputTuple,
+      RefundedEvent.OutputTuple,
+      RefundedEvent.OutputObject
+    >;
+    Refunded: TypedContractEvent<
+      RefundedEvent.InputTuple,
+      RefundedEvent.OutputTuple,
+      RefundedEvent.OutputObject
+    >;
+
+    "WorkSubmitted(uint256,address)": TypedContractEvent<
+      WorkSubmittedEvent.InputTuple,
+      WorkSubmittedEvent.OutputTuple,
+      WorkSubmittedEvent.OutputObject
+    >;
+    WorkSubmitted: TypedContractEvent<
+      WorkSubmittedEvent.InputTuple,
+      WorkSubmittedEvent.OutputTuple,
+      WorkSubmittedEvent.OutputObject
     >;
   };
 }

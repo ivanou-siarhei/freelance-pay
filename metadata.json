@@ -1,6 +1,6 @@
 {
-  "name": "FlowPay B2B Protocol",
-  "description": "B2B Payment Protocol on the Arc Blockchain with Stream Manager and Invoice Vault",
+  "name": "FlowPay Freelance Escrow",
+  "description": "Freelance escrow on the Arc blockchain: clients lock USDC, freelancers deliver and get paid",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
